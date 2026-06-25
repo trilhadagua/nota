@@ -41,21 +41,17 @@ if arquivo_pdf is not None:
                 
                 # --- 1. CAPTURA DO CLIENTE (MÚLTIPLAS CAMADAS DE SEGURANÇA) ---
                 cliente_detectado = ""
-                
-                # Camada 1: Procura pelo cabeçalho do bloco de cadastro do Destinatário
                 for idx, linha in enumerate(linhas_upper):
                     if "NOME" in linha and ("RAZAD" in linha or "RAZÃO" in linha or "RAZAO" in linha):
                         if idx + 1 < len(linhas):
                             cliente_detectado = linhas[idx + 1].strip()
                         break
                 
-                # Camada 2: Fallback por Regex caso a estrutura de linhas mude
                 if not cliente_detectado:
                     match_cli = re.search(r'DESTINAT[AÁ]RIO\s+(.+?)\s+(?:RUA|AVENIDA|ALAMEDA|RODOVIA|ENDERE[CÇ]O)', texto_upper)
                     if match_cli:
                         cliente_detectado = match_cli.group(1).strip()
                 
-                # Camada 3: Validação e Formatação de Clientes Frequentes Conhecidos
                 if "HOTEL BOURBON" in texto_upper:
                     st.session_state.txt_cliente = "HOTEL BOURBON DE FOZ DO IGUACU LTDA"
                 elif "LEVE CURITIBA" in texto_upper:
@@ -83,13 +79,32 @@ if arquivo_pdf is not None:
                     datas = re.findall(r'\b\d{2}/\d{2}/\d{4}\b', texto_upper)
                     st.session_state.txt_data_envio = datas[0] if datas else ""
                     
-                # --- 4. CAPTURA DA TRANSPORTADORA ---
-                if "RODONAVES" in texto_upper:
+                # --- 4. CAPTURA DA TRANSPORTADORA (CORREÇÃO DE OCR DO CAMPO) ---
+                transp_detectada = ""
+                for idx, linha in enumerate(linhas_upper):
+                    # Encontra a linha que define o rótulo do campo, aceitando variações como NGME ou NOME
+                    if ("RAZÃO" in linha or "RAZAD" in linha or "RAZAO" in linha or "NGME" in linha) and idx > 15:
+                        # Se estiver dentro do bloco de transporte (que fica na metade inferior do PDF)
+                        if "TRANSPORTADOR" in linhas_upper[idx-1] or "TRANSPORTADOR" in linhas_upper[idx-2] or idx > 35:
+                            if idx + 1 < len(linhas):
+                                transp_detectada = linhas[idx + 1].strip()
+                            break
+                
+                # Se a varredura estrutural falhar, aplica um fallback textual por Regex abrangente
+                if not transp_detectada:
+                    match_tr = re.search(r'(?:TRANSPORTADOR/VOLUMES TRANSPORTADOS)\s*(?:NOME|NGME|RAZÃO|RAZAO|\s)*SOCIAL\s*\n\s*(.+)', texto_upper)
+                    if match_tr:
+                        transp_detectada = match_tr.group(1).strip()
+
+                transp_upper = transp_detectada.upper()
+                if "RODONAVES" in texto_upper or "RODONAVES" in transp_upper:
                     st.session_state.txt_transportadora = "RODONAVES TRANSPORTES E ENCOMENDAS LTDA"
-                elif "GOL" in texto_upper:
+                elif "GOL" in texto_upper or "GOL" in transp_upper:
                     st.session_state.txt_transportadora = "GOL LINHAS AEREAS SA"
+                elif "O MESMO" in transp_upper or transp_detectada == "":
+                    st.session_state.txt_transportadora = "A DEFINIR / RETIRA (O MESMO)"
                 else:
-                    st.session_state.txt_transportadora = "A DEFINIR / RETIRA"
+                    st.session_state.txt_transportadora = transp_detectada
                 
                 # --- 5. CAPTURA DO NÚMERO DA NF-E ---
                 match_nfe = re.search(r'N[°°ºª\s]*(\d+)\s*\n\s*S[EÉ]RIE', texto_upper)
@@ -126,8 +141,6 @@ if arquivo_pdf is not None:
                 match_obs = re.search(r'INFORMA[CÇ][OÕ]ES\s+COMPLEMENTARES\s*([\s\S]+?)(?=QUANTIDADE\s+TOTAL|RESERVADO|$)', texto_upper)
                 if match_obs:
                     conteudo_obs = match_obs.group(1).strip()
-                    
-                    # Limpezas de propagandas ou dados técnicos de rodapé dos emissores
                     conteudo_obs = re.sub(r'VERS[AÃ]O\s+DO\s+SISTEMA.*', '', conteudo_obs, flags=re.IGNORECASE)
                     conteudo_obs = re.sub(r'VEJA\s+NOSSAS\s+SOLU[CÇ][OÕ]ES.*', '', conteudo_obs, flags=re.IGNORECASE)
                     
@@ -136,13 +149,11 @@ if arquivo_pdf is not None:
                 else:
                     st.session_state.txt_obs = ""
                 
-                # Grava o nome do arquivo atual para evitar reprocessamento infinito
                 st.session_state.arquivo_processado = arquivo_pdf.name
                 st.rerun()
         except Exception as e:
             st.error(f"Erro ao processar o PDF: {e}")
 else:
-    # Se o arquivo for removido da tela, limpa todos os campos
     if st.session_state.arquivo_processado != "":
         st.session_state.txt_cliente = ""
         st.session_state.txt_pedido = ""
@@ -218,7 +229,6 @@ if len(num_telefone) == 11:
 texto_codificado = urllib.parse.quote(mensagem)
 link_whatsapp = f"https://api.whatsapp.com/send?phone={num_telefone}&text={texto_codificado}"
 
-# Botão do WhatsApp estilo Web App
 st.markdown(f'<a href="{link_whatsapp}" target="_blank"><button style="width:100%; background-color:#25d366; color:white; border:none; padding:12px; font-weight:bold; font-size:16px; border-radius:5px; cursor:pointer;">📲 Abrir no WhatsApp</button></a>', unsafe_allow_html=True)
 
 st.markdown("#### Texto que será enviado (Cópia de segurança):")
