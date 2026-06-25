@@ -44,18 +44,18 @@ if arquivo_pdf is not None:
                 
                 # Camada 1: Procura pelo cabeçalho do bloco de cadastro do Destinatário
                 for idx, linha in enumerate(linhas_upper):
-                    if "NOME" in linha and ("RAZAD" in linha or "RAZÃO" in list(linha) or "RAZAO" in linha):
+                    if "NOME" in linha and ("RAZAD" in linha or "RAZÃO" in linha or "RAZAO" in linha):
                         if idx + 1 < len(linhas):
                             cliente_detectado = linhas[idx + 1].strip()
                         break
                 
-                # Camada 2: Fallback por Regex caso a estrutura de linhas falhe
+                # Camada 2: Fallback por Regex caso a estrutura de linhas mude
                 if not cliente_detectado:
                     match_cli = re.search(r'DESTINAT[AÁ]RIO\s+(.+?)\s+(?:RUA|AVENIDA|ALAMEDA|RODOVIA|ENDERE[CÇ]O)', texto_upper)
                     if match_cli:
                         cliente_detectado = match_cli.group(1).strip()
                 
-                # Camada 3: Validação de Clientes Frequentes Conhecidos
+                # Camada 3: Validação e Formatação de Clientes Frequentes Conhecidos
                 if "HOTEL BOURBON" in texto_upper:
                     st.session_state.txt_cliente = "HOTEL BOURBON DE FOZ DO IGUACU LTDA"
                 elif "LEVE CURITIBA" in texto_upper:
