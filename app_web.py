@@ -2,12 +2,78 @@ import streamlit as st
 import pdfplumber
 import re
 import urllib.parse
+import base64
+import os
+#from PIL import Image
+#1. Configuração da Página (Sempre a primeira função do Streamlit a ser chamada)
 
-# Configuração da página Web
-st.set_page_config(page_title="Gerador - Disparo Automático", page_icon="⚡", layout="centered")
+st.set_page_config(
+    page_title="Gerador Automático Danfe", 
+    page_icon="🚚", 
+    layout="centered"
+)
+# Remove as margens e o preenchimento padrão do topo da página do Streamlit
+st.html(
+    """
+    <style>
+        .stAppHeader {
+            display: none;
+        }
+        .stMainBlockContainer {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
+    </style>
+    """
+)
 
-st.title("⚡ Central de Envios Automáticos")
-st.markdown("Confira os dados extraídos do PDF, preencha os campos manuais e dispare diretamente para o setor.")
+# 2. Descobre a pasta exata onde o seu arquivo 'app_envio.py' está salvo
+diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+caminho_do_logo = os.path.join(diretorio_atual, "fretetrilhawebp.webp")
+
+import base64
+
+# --- PROCESSAMENTO SEGURO DA IMAGEM EM BASE64 ---
+logo_base64 = ""
+if os.path.exists(caminho_do_logo):
+    with open(caminho_do_logo, "rb") as image_file:
+        # Transforma os bytes do arquivo webp em string de texto legível pelo HTML
+        logo_base64 = base64.b64encode(image_file.read()).decode("utf-8")
+
+# --- LOGO E TÍTULO RESPONSIVO NO CORPO DA PÁGINA ---
+if logo_base64:
+    # Se a imagem existe, injeta o contêiner flexível com a imagem embutida
+    st.html(
+        f"""
+        <div style="
+            display: flex; 
+            align-items: center; 
+            gap: 20px; 
+            flex-wrap: wrap; 
+            margin-bottom: 20px;
+        ">
+            <!-- Logo Responsivo em Base64 -->
+            <img src="data:image/webp;base64,{logo_base64}" style="
+                max-width: 120px; 
+                width: 100%; 
+                height: auto; 
+                object-fit: contain;
+            ">
+            
+            <!-- Título que se ajusta ao tamanho da tela -->
+            <h1 style="
+                margin: 0; 
+                font-size: clamp(1.8rem, 4vw, 2.5rem);
+                font-weight: 700;
+            ">Gerador Automático Danfe</h1>
+        </div>
+        """
+    )
+else:
+    # Fallback seguro caso o arquivo mude de nome ou seja apagado
+    st.warning("⚠️ Arquivo 'fretetrilhawebp.webp' não encontrado na pasta Downloads.")
+    st.title("Gerador Automático Danfe")
+st.markdown("Confira os dados extraídos do PDF, preencha os campos manuais.")
 
 # Inicializa as variáveis no session_state para manter a reatividade correta
 if "txt_cliente" not in st.session_state: st.session_state.txt_cliente = ""
@@ -99,6 +165,8 @@ if arquivo_pdf is not None:
                     st.session_state.txt_transportadora = "AZUL CARGO EXPRESS"
                 elif "LATAM" in transp_upper:
                     st.session_state.txt_transportadora = "LATAM CARGO BRASIL"
+                elif "TAM" in transp_upper:
+                    st.session_state.txt_transportadora = "TAM LINHAS AEREAS"
                 elif "MIGUEL" in transp_upper:
                     st.session_state.txt_transportadora = "EXPRESSO SÃO MIGUEL"
                 elif "O MESMO" in transp_upper or transp_detectada == "":
@@ -117,6 +185,8 @@ if arquivo_pdf is not None:
                 elif "AZUL" in nome_transp_check:
                     st.session_state.txt_link_rastreio = "https://www.azulcargo.com.br/"
                 elif "LATAM" in nome_transp_check:
+                    st.session_state.txt_link_rastreio = "https://www.latamcargo.com/pt/trackshipment"
+                elif "TAM" in nome_transp_check:
                     st.session_state.txt_link_rastreio = "https://www.latamcargo.com/pt/trackshipment"
                 elif "MIGUEL" in nome_transp_check:
                     st.session_state.txt_link_rastreio = "https://portaldocliente.expressosaomiguel.com.br/rastrear-mercadoria"
